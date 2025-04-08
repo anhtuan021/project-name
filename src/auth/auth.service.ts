@@ -1,9 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { comparePasswordHelper } from 'src/helpers/util';
-import { UsersService } from 'src/modules/users/users.service';
-import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
-import { CreateAuthDto } from './dto/create-auth.dto';
+import { comparePasswordHelper } from '../helpers/util';
+import { UsersService } from '../modules/users/users.service';
+import { ChangePasswordAuthDto, CodeAuthDto, CreateAuthDto } from './dto/create-auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -14,16 +13,19 @@ export class AuthService {
 
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(username);
-    if (user == null) return;
+    if (!user) return null;
 
     const isValidPassword = await comparePasswordHelper(pass, user.password);
 
-    if (!user || !isValidPassword) return null;
+    if (!isValidPassword) return null;
     return user;
   }
-  async signIn(username: string, pass: string): Promise<any> {
+  async signIn(
+    username: string,
+    pass: string,
+  ): Promise<{ access_token: string } | null> {
     const user = await this.usersService.findByEmail(username);
-    if (user == null) return;
+    if (user == null) return null;
 
     const isValidPassword = await comparePasswordHelper(pass, user.password);
     if (!isValidPassword) {
@@ -38,10 +40,28 @@ export class AuthService {
   async login(user: any) {
     const payload = { username: user.email, sub: user._id };
     return {
+      user:{
+      email: user.email,
+      _id: user._id,
+      name: user.name,
+    },
       access_token: this.jwtService.sign(payload),
     };
   }
   handleRegister = async (registerDto: CreateAuthDto) => {
     return await this.usersService.handleRegister(registerDto);
+  };
+
+  checkCode = async (data: CodeAuthDto) => {
+    return await this.usersService.handleActive(data);
+  };
+  retryActive = async (data: string) => {
+    return await this.usersService.retryActive(data);
+  };
+  retryPassword = async (data: string) => {
+    return await this.usersService.retryPassword(data);
+  };
+  changePassword = async (data: ChangePasswordAuthDto) => {
+    return await this.usersService.changePassword(data);
   };
 }
